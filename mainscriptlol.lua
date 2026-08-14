@@ -176,6 +176,45 @@ local function aimCameraAtEyes()
 	end
 end
 
+local function checkAlive()
+	local character = player.Character
+	if not character or not character.Parent then
+		return false
+	end
+	local alive = character:FindFirstChild("Alive")
+	if not alive then
+		return false
+	end
+	return alive.Value == true
+end
+
+local function forceDeath()
+	local replicateSignal = remotesFolder:FindFirstChild("ReplicateSignal")
+	if replicateSignal then
+		pcall(function()
+			replicateSignal:FireServer(player, "Kill")
+		end)
+		print("Force death triggered via ReplicateSignal")
+	else
+		warn("ReplicateSignal not found")
+	end
+end
+
+local function waitForNewCharacter(oldCharacter, timeout)
+	local start = tick()
+	while tick() - start < timeout do
+		local currentCharacter = player.Character
+		if currentCharacter and currentCharacter.Parent and currentCharacter ~= oldCharacter then
+			local hrp = currentCharacter:FindFirstChild("HumanoidRootPart")
+			if hrp then
+				return currentCharacter, hrp
+			end
+		end
+		task.wait(0.1)
+	end
+	return nil, nil
+end
+
 print("Waiting for CurrentRooms...")
 local currentRooms = workspace:WaitForChild("CurrentRooms", 10)
 local currentRoom0 = currentRooms and currentRooms:WaitForChild("0", 10)
@@ -233,33 +272,26 @@ if currentRoom0 then
 	task.wait(8)
 	doorLooping = false
 	print("Room 0 complete")
-end
 
-local function checkAlive()
-	local character = player.Character
-	if not character or not character.Parent then
-		return false
-	end
-	local alive = character:FindFirstChild("Alive")
-	if not alive then
-		return false
-	end
-	return alive.Value == true
-end
-
-local function waitForNewCharacter(oldCharacter, timeout)
-	local start = tick()
-	while tick() - start < timeout do
-		local currentCharacter = player.Character
-		if currentCharacter and currentCharacter.Parent and currentCharacter ~= oldCharacter then
-			local hrp = currentCharacter:FindFirstChild("HumanoidRootPart")
+	-- Death detection in Room 0
+	task.spawn(function()
+		local deathTimer = tick()
+		while tick() - deathTimer < 4 do
+			if not checkAlive() then
+				print("Death detected in Room 0")
+				return
+			end
+			task.wait(0.1)
+		end
+		print("No death in 4s — teleporting to Eyes")
+		local eyes = workspace:FindFirstChild("Eyes", true)
+		if eyes then
+			local hrp = getCurrentHRP()
 			if hrp then
-				return currentCharacter, hrp
+				hrp.CFrame = CFrame.new(eyes.Position + Vector3.new(0, 2, 0))
 			end
 		end
-		task.wait(0.1)
-	end
-	return nil, nil
+	end)
 end
 
 local oldCharacter = player.Character
@@ -279,7 +311,6 @@ if oldCharacter and not checkAlive() then
 			print("New character detected:", newCharacter:GetFullName())
 			print("New HRP detected:", newHRP:GetFullName())
 
-			-- Aim camera at Eyes after revive
 			task.wait(1)
 			aimCameraAtEyes()
 			print("Camera aimed at Eyes")
@@ -341,6 +372,14 @@ if oldCharacter and not checkAlive() then
 						task.wait(1)
 						local isAlive = checkAlive()
 						print("Alive status after revive:", isAlive)
+						
+						if isAlive then
+							print("Alive in Room 1, waiting 7s then force death")
+							task.wait(7)
+							if checkAlive() then
+								forceDeath()
+							end
+						end
 						
 						local playAgainRemote = remotesFolder:FindFirstChild("PlayAgain")
 						if playAgainRemote then
