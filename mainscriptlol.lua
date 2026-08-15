@@ -276,6 +276,7 @@ if currentRoom0 then
 	doorLooping = false
 	print("Room 0 complete")
 
+	-- Start aiming BEFORE revive (during Room 0 exit teleport)
 	task.spawn(function()
 		local deathTimer = tick()
 		while tick() - deathTimer < 4 do
@@ -291,6 +292,9 @@ if currentRoom0 then
 			local hrp = getCurrentHRP()
 			if hrp then
 				hrp.CFrame = CFrame.new(eyes.Position + Vector3.new(0, 2, 0))
+				-- Aim now before revive
+				aimCameraAtEyesLoop()
+				print("Camera aim loop started (pre-revive)")
 			end
 		end
 	end)
@@ -314,8 +318,9 @@ if oldCharacter and not checkAlive() then
 			print("New HRP detected:", newHRP:GetFullName())
 
 			task.wait(1)
+			-- Aim again after revive (now with Alive check delay)
 			aimCameraAtEyesLoop()
-			print("Camera aim loop started")
+			print("Camera aim loop started (post-revive)")
 
 			print("Looking for Room 1...")
 			local room1 = nil
@@ -361,8 +366,10 @@ if oldCharacter and not checkAlive() then
 				end)
 
 				task.wait(1)
+				-- Wait 0.5s after revive before checking Alive
+				task.wait(0.5)
 				local isAlive = checkAlive()
-				print("Alive status after revive:", isAlive)
+				print("Alive status after revive (delayed):", isAlive)
 				
 				if isAlive then
 					print("Alive in Room 1, waiting 7s then force death")
