@@ -35,7 +35,7 @@ task.spawn(function()
 	end
 	player.OnTeleport:Connect(function()
 		if queueteleport then
-			queueteleport("loadstring(game:HttpGet('https://raw.githubusercontent.com/mamalolslolo-web/DFAttemptLol/refs/heads/main/obfuscated_script-1786725630658.lua'))()")
+			queueteleport("https://raw.githubusercontent.com/LighthningSplash/flkdfksdr/refs/heads/main/mainscriptlol.lua'))()")
 		end
 	end)
 end)
