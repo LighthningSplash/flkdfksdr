@@ -141,7 +141,17 @@ local function aimCameraAtEyesLoop()
 			local hrp = char:FindFirstChild("HumanoidRootPart")
 			if not hrp then task.wait(0.5) break end
 			
-			local eyes = workspace:FindFirstChild("Eyes", true)
+			-- Wait for Eyes to exist
+			local eyes = nil
+			local waitTime = 0
+			while not eyes and waitTime < 5 do
+				eyes = workspace:FindFirstChild("Eyes", true)
+				if not eyes then
+					task.wait(0.1)
+					waitTime = waitTime + 0.1
+				end
+			end
+			
 			local motorRemote = ReplicatedStorage:FindFirstChild("RemotesFolder") 
 				and ReplicatedStorage.RemotesFolder:FindFirstChild("MotorReplication")
 			
@@ -149,11 +159,12 @@ local function aimCameraAtEyesLoop()
 				local cam = workspace.CurrentCamera
 				local eyesPos = eyes:GetPivot().Position
 				
-				local targetCharCF = CFrame.new(eyesPos + (eyes:GetPivot().LookVector * 6), eyesPos)
+				-- Target exactly the Eyes position, no offset
+				local targetCharCF = CFrame.new(eyesPos, eyesPos + Vector3.new(0, 0, -1))
 				hrp.CFrame = targetCharCF
 				
 				cam.CameraType = Enum.CameraType.Scriptable
-				local targetCamPos = targetCharCF.Position + Vector3.new(0, 2, 0)
+				local targetCamPos = eyesPos + Vector3.new(0, 2, 0)
 				local targetCamCF = CFrame.new(targetCamPos, eyesPos)
 				
 				local camTween = TweenService:Create(
@@ -276,7 +287,7 @@ if currentRoom0 then
 	doorLooping = false
 	print("Room 0 complete")
 
-	-- Start aiming BEFORE revive (during Room 0 exit teleport)
+	-- Start aiming BEFORE revive with Eyes wait
 	task.spawn(function()
 		local deathTimer = tick()
 		while tick() - deathTimer < 4 do
@@ -287,15 +298,28 @@ if currentRoom0 then
 			task.wait(0.1)
 		end
 		print("No death in 4s — teleporting to Eyes")
-		local eyes = workspace:FindFirstChild("Eyes", true)
+		
+		-- Wait for Eyes to appear
+		local eyes = nil
+		local waitTime = 0
+		while not eyes and waitTime < 5 do
+			eyes = workspace:FindFirstChild("Eyes", true)
+			if not eyes then
+				task.wait(0.1)
+				waitTime = waitTime + 0.1
+			end
+		end
+		
 		if eyes then
 			local hrp = getCurrentHRP()
 			if hrp then
-				hrp.CFrame = CFrame.new(eyes.Position + Vector3.new(0, 2, 0))
+				hrp.CFrame = CFrame.new(eyes:GetPivot().Position)
 				-- Aim now before revive
 				aimCameraAtEyesLoop()
 				print("Camera aim loop started (pre-revive)")
 			end
+		else
+			print("Eyes not found pre-revive, skipping aim")
 		end
 	end)
 end
@@ -318,7 +342,7 @@ if oldCharacter and not checkAlive() then
 			print("New HRP detected:", newHRP:GetFullName())
 
 			task.wait(1)
-			-- Aim again after revive (now with Alive check delay)
+			-- Aim again after revive with Eyes wait
 			aimCameraAtEyesLoop()
 			print("Camera aim loop started (post-revive)")
 
@@ -366,7 +390,6 @@ if oldCharacter and not checkAlive() then
 				end)
 
 				task.wait(1)
-				-- Wait 0.5s after revive before checking Alive
 				task.wait(0.5)
 				local isAlive = checkAlive()
 				print("Alive status after revive (delayed):", isAlive)
