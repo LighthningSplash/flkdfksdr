@@ -141,7 +141,6 @@ local function aimCameraAtEyesLoop()
 			local hrp = char:FindFirstChild("HumanoidRootPart")
 			if not hrp then task.wait(0.5) break end
 			
-			-- Wait for Eyes to exist
 			local eyes = nil
 			local waitTime = 0
 			while not eyes and waitTime < 5 do
@@ -159,7 +158,6 @@ local function aimCameraAtEyesLoop()
 				local cam = workspace.CurrentCamera
 				local eyesPos = eyes:GetPivot().Position
 				
-				-- Target exactly the Eyes position, no offset
 				local targetCharCF = CFrame.new(eyesPos, eyesPos + Vector3.new(0, 0, -1))
 				hrp.CFrame = targetCharCF
 				
@@ -195,10 +193,16 @@ local function checkAlive()
 	if not character or not character.Parent then
 		return false
 	end
+	
 	local alive = character:FindFirstChild("Alive")
 	if not alive then
+		local humanoid = character:FindFirstChild("Humanoid")
+		if humanoid and humanoid.Health > 0 then
+			return true
+		end
 		return false
 	end
+	
 	return alive.Value == true
 end
 
@@ -287,7 +291,6 @@ if currentRoom0 then
 	doorLooping = false
 	print("Room 0 complete")
 
-	-- Start aiming BEFORE revive with Eyes wait
 	task.spawn(function()
 		local deathTimer = tick()
 		while tick() - deathTimer < 4 do
@@ -299,7 +302,6 @@ if currentRoom0 then
 		end
 		print("No death in 4s — teleporting to Eyes")
 		
-		-- Wait for Eyes to appear
 		local eyes = nil
 		local waitTime = 0
 		while not eyes and waitTime < 5 do
@@ -314,7 +316,6 @@ if currentRoom0 then
 			local hrp = getCurrentHRP()
 			if hrp then
 				hrp.CFrame = CFrame.new(eyes:GetPivot().Position)
-				-- Aim now before revive
 				aimCameraAtEyesLoop()
 				print("Camera aim loop started (pre-revive)")
 			end
@@ -342,7 +343,6 @@ if oldCharacter and not checkAlive() then
 			print("New HRP detected:", newHRP:GetFullName())
 
 			task.wait(1)
-			-- Aim again after revive with Eyes wait
 			aimCameraAtEyesLoop()
 			print("Camera aim loop started (post-revive)")
 
