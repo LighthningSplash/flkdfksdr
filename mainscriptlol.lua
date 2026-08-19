@@ -248,7 +248,7 @@ if not deathDetected then
 end
 
 --------------------------------------------------------------------------------
--- PLAY AGAIN / VIRTUAL MOUSE LOGIC (UI VISIBILITY BASED)
+-- PLAY AGAIN / NATIVE UI HIGHLIGHT & SELECTION LOGIC
 --------------------------------------------------------------------------------
 local progressDetected = false
 
@@ -265,37 +265,24 @@ charConn = player.CharacterAdded:Connect(function()
 	if charConn then charConn:Disconnect() end
 end)
 
--- Function to click UI Button via VirtualInputManager & signal triggers
-local function clickPlayAgainButton(playAgainBtn)
-	if not playAgainBtn or not playAgainBtn:IsA("GuiObject") then return end
+-- Function to select the button and simulate the activation key
+local function selectAndActivateButton(button)
+	if not button or not button:IsA("GuiObject") then return end
 
-	print("Attempting virtual mouse click on DeathPanel.PlayAgain...")
-	
-	-- Method 1: Executor firesignal (if supported)
-	if typeof(firesignal) == "function" then
-		pcall(function() firesignal(playAgainBtn.MouseButton1Click) end)
-		pcall(function() firesignal(playAgainBtn.MouseButton1Down) end)
-		pcall(function() firesignal(playAgainBtn.MouseButton1Up) end)
-		pcall(function() firesignal(playAgainBtn.Activated) end)
-	end
+	print("Highlighting and activating button via GuiService...")
 
-	-- Method 2: VirtualInputManager center screen click
 	pcall(function()
-		local pos = playAgainBtn.AbsolutePosition
-		local size = playAgainBtn.AbsoluteSize
-		local clickPos = pos + (size / 2)
-		
-		VirtualInputManager:SendMouseButtonEvent(clickPos.X, clickPos.Y, 0, true, game, 1)
-		task.wait(0.05)
-		VirtualInputManager:SendMouseButtonEvent(clickPos.X, clickPos.Y, 0, false, game, 1)
-	end)
+		-- 1. Highlight / Select the object on screen (\ navigation focus)
+		GuiService.SelectedObject = button
+		task.wait(0.1)
 
-	-- Method 3: GuiService selection press
-	pcall(function()
-		GuiService.SelectedObject = playAgainBtn
+		-- 2. Simulate pressing the selection activation key (Enter / Return)
 		VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
 		task.wait(0.05)
 		VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
+
+		-- 3. Clear selection state
+		task.wait(0.1)
 		GuiService.SelectedObject = nil
 	end)
 end
@@ -325,9 +312,9 @@ if playAgainBtn and not progressDetected then
 	task.wait(1)
 
 	while not progressDetected do
-		clickPlayAgainButton(playAgainBtn)
+		selectAndActivateButton(playAgainBtn)
 		
-		-- Check every 0.2s for 5s if click triggered progression
+		-- Check every 0.2s for 5s if activation triggered progression
 		local clickStart = tick()
 		while tick() - clickStart < 5 do
 			if progressDetected then break end
@@ -335,7 +322,7 @@ if playAgainBtn and not progressDetected then
 		end
 
 		if not progressDetected then
-			print("No progress detected after click, retrying Virtual Mouse click...")
+			print("No progress detected after selection, retrying activation...")
 		end
 	end
 end
