@@ -192,13 +192,66 @@ if currentRoom0 then
 	print("Room 0 complete")
 end
 
--- Wait until death is confirmed
-print("Waiting for player death...")
-repeat task.wait(0.1) until not checkAlive()
-print("First death confirmed!")
+-- Check for death within 4 seconds of finishing RoomExit teleport
+print("Checking for death post RoomExit...")
+local roomExitDeathTimer = tick()
+local deathDetected = false
 
--- 5-second wait post-death
-task.wait(5)
+while tick() - roomExitDeathTimer < 4 do
+	if not checkAlive() then
+		deathDetected = true
+		print("Death detected after RoomExit!")
+		break
+	end
+	task.wait(0.1)
+end
+
+-- If no death detected, try teleporting to all "Eyes" parts for 4 seconds
+if not deathDetected then
+	print("No death detected within 4s. Starting teleport to 'Eyes' parts...")
+	local eyesDeathTimer = tick()
+	
+	while tick() - eyesDeathTimer < 4 do
+		if not checkAlive() then
+			deathDetected = true
+			print("Death detected while teleporting to Eyes!")
+			break
+		end
+		
+		-- Find all "Eyes" models/parts in workspace
+		local eyesInstances = {}
+		for _, v in ipairs(workspace:GetDescendants()) do
+			if v.Name == "Eyes" then
+				table.insert(eyesInstances, v)
+			end
+		end
+
+		local hrp = getCurrentHRP()
+		if hrp and #eyesInstances > 0 then
+			for _, eyeObj in ipairs(eyesInstances) do
+				if not checkAlive() then
+					deathDetected = true
+					break
+				end
+				local eyePos = eyeObj:IsA("Model") and eyeObj:GetPivot().Position or (eyeObj:IsA("BasePart") and eyeObj.Position)
+				if eyePos then
+					hrp.CFrame = CFrame.new(eyePos)
+				end
+				task.wait(0.1)
+			end
+		else
+			task.wait(0.1)
+		end
+	end
+end
+
+-- If still not dead after Eyes attempts, skip to pressing PlayAgain directly
+if not deathDetected and checkAlive() then
+	warn("No death detected after 4s at Eyes. Proceeding to fire PlayAgain...")
+else
+	print("First death confirmed! Waiting 5 seconds before firing PlayAgain...")
+	task.wait(5)
+end
 
 local playAgainRemote = remotesFolder:WaitForChild("PlayAgain", 10)
 
@@ -223,7 +276,7 @@ if playAgainRemote then
 		-- Wait 5 seconds to check if progress/teleport occurs
 		local checkStart = tick()
 		while tick() - checkStart < 5 do
-			if progressDetected or checkAlive() then
+			if progressDetected or (deathDetected and checkAlive()) then
 				progressDetected = true
 				break
 			end
