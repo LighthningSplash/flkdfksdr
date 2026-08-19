@@ -8,6 +8,8 @@ end
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local GuiService = game:GetService("GuiService")
 local player = Players.LocalPlayer
 
 print("Script started")
@@ -245,51 +247,114 @@ if not deathDetected then
 	end
 end
 
--- If still not dead after Eyes attempts, skip to pressing PlayAgain directly
+-- If still not dead after Eyes attempts, skip delay
 if not deathDetected and checkAlive() then
-	warn("No death detected after 4s at Eyes. Proceeding to fire PlayAgain...")
+	warn("No death detected after 4s at Eyes. Proceeding directly...")
 else
-	print("First death confirmed! Waiting 5 seconds before firing PlayAgain...")
+	print("Death confirmed! Waiting 5 seconds before first PlayAgain attempt...")
 	task.wait(5)
 end
 
-local playAgainRemote = remotesFolder:WaitForChild("PlayAgain", 10)
+--------------------------------------------------------------------------------
+-- PLAY AGAIN RETRY / VIRTUAL MOUSE LOGIC
+--------------------------------------------------------------------------------
+local progressDetected = false
 
-if playAgainRemote then
-	local progressDetected = false
-	
-	-- Connection to check if a teleport/level progression starts
-	local teleportConnection
-	teleportConnection = player.OnTeleport:Connect(function()
-		progressDetected = true
-		if teleportConnection then
-			teleportConnection:Disconnect()
+-- Track progression (Teleport or respawn)
+local teleportConn
+teleportConn = player.OnTeleport:Connect(function()
+	progressDetected = true
+	if teleportConn then teleportConn:Disconnect() end
+end)
+
+local charConn
+charConn = player.CharacterAdded:Connect(function()
+	progressDetected = true
+	if charConn then charConn:Disconnect() end
+end)
+
+-- Function to click UI Button via VirtualInputManager & signal triggers
+local function clickPlayAgainButton()
+	local deathPanel = mainUI and mainUI:FindFirstChild("DeathPanel")
+	local playAgainBtn = deathPanel and deathPanel:FindFirstChild("PlayAgain")
+
+	if playAgainBtn and playAgainBtn:IsA("GuiObject") then
+		print("Attempting virtual mouse click on DeathPanel.PlayAgain...")
+		
+		-- Method 1: Executor firesignal (if supported)
+		if typeof(firesignal) == "function" then
+			pcall(function() firesignal(playAgainBtn.MouseButton1Click) end)
+			pcall(function() firesignal(playAgainBtn.MouseButton1Down) end)
+			pcall(function() firesignal(playAgainBtn.MouseButton1Up) end)
+			pcall(function() firesignal(playAgainBtn.Activated) end)
 		end
-	end)
 
-	while not progressDetected do
-		print("Pressing PlayAgain...")
+		-- Method 2: VirtualInputManager center screen click
 		pcall(function()
-			playAgainRemote:FireServer()
+			local pos = playAgainBtn.AbsolutePosition
+			local size = playAgainBtn.AbsoluteSize
+			local clickPos = pos + (size / 2)
+			
+			VirtualInputManager:SendMouseButtonEvent(clickPos.X, clickPos.Y, 0, true, game, 1)
+			task.wait(0.05)
+			VirtualInputManager:SendMouseButtonEvent(clickPos.X, clickPos.Y, 0, false, game, 1)
 		end)
 
-		-- Wait 5 seconds to check if progress/teleport occurs
-		local checkStart = tick()
-		while tick() - checkStart < 5 do
-			if progressDetected or (deathDetected and checkAlive()) then
-				progressDetected = true
-				break
-			end
-			task.wait(0.2)
-		end
-
-		if not progressDetected then
-			print("No progress detected after 5 seconds, retrying PlayAgain...")
-		end
+		-- Method 3: GuiService selection press
+		pcall(function()
+			GuiService.SelectedObject = playAgainBtn
+			VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
+			task.wait(0.05)
+			VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
+			GuiService.SelectedObject = nil
+		end)
+	else
+		warn("PlayAgain TextButton not found in DeathPanel!")
 	end
-	print("Progress detected! PlayAgain loop stopped.")
-else
-	warn("PlayAgain remote not found.")
 end
 
+-- Helper to wait up to `duration` seconds while checking if progress was made
+local function waitAndCheckProgress(duration)
+	local startTime = tick()
+	while tick() - startTime < duration do
+		if progressDetected or (deathDetected and checkAlive()) then
+			return true
+		end
+		task.wait(0.2)
+	end
+	return progressDetected
+end
+
+local playAgainRemote = remotesFolder:FindFirstChild("PlayAgain")
+
+-- ATTEMPT 1: Fire PlayAgain Remote
+print("[Attempt 1] Firing PlayAgain remote...")
+if playAgainRemote then
+	pcall(function() playAgainRemote:FireServer() end)
+else
+	warn("PlayAgain remote missing!")
+end
+
+if not waitAndCheckProgress(5) then
+	-- ATTEMPT 2: No progress after 5s -> Fire PlayAgain Remote again
+	print("[Attempt 2] No progress detected after 5s. Refiring PlayAgain remote...")
+	if playAgainRemote then
+		pcall(function() playAgainRemote:FireServer() end)
+	end
+
+	if not waitAndCheckProgress(5) then
+		-- ATTEMPT 3: No progress after 5s -> Virtual Mouse Click UI Button
+		print("[Attempt 3] Still no progress after 10s total. Clicking PlayAgain TextButton with Virtual Mouse...")
+		
+		while not progressDetected do
+			clickPlayAgainButton()
+			if waitAndCheckProgress(5) then
+				break
+			end
+			print("Retrying Virtual Mouse click...")
+		end
+	end
+end
+
+print("Progress detected! PlayAgain execution completed.")
 print("Script finished execution")
