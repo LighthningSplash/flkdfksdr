@@ -258,7 +258,7 @@ firePlayAgain()
 -- Rejoin fallback loop: checking every 10 seconds if no progress occurs
 task.spawn(function()
 	while true do
-		task.wait(10)
+		task.wait(5)
 		-- Check if player is still dead/hasn't progressed to a new place or character
 		if not checkAlive() then
 			print("No progress detected after 10 seconds. Retrying PlayAgain...")
