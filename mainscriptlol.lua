@@ -1,7 +1,3 @@
--- Dev test farm
--- Use in Roblox Studio Admin command bar
--- Press PlayTest to use Command Bar
-
 local function missing(t, f, fallback)
 	if type(f) == t then
 		return f
@@ -17,7 +13,7 @@ local player = Players.LocalPlayer
 print("Script started")
 
 while not player do
-	task.wait(0.5)
+	task.wait()
 	player = Players.LocalPlayer
 end
 
@@ -34,7 +30,7 @@ _G.hasFiredPlayAgain = nil
 
 task.spawn(function()
 	while not player do
-		task.wait(0.5)
+		task.wait()
 		player = Players.LocalPlayer
 	end
 	player.OnTeleport:Connect(function()
@@ -44,29 +40,42 @@ task.spawn(function()
 	end)
 end)
 
+while not player do
+	task.wait()
+	player = Players.LocalPlayer
+end
+
 print("Waiting for StarterElevator...")
-repeat task.wait(0.5) until workspace:FindFirstChild("StarterElevator", true)
+repeat task.wait() until workspace:FindFirstChild("StarterElevator", true)
 print("StarterElevator found")
 
 print("Waiting for Character...")
-repeat task.wait(0.5) until player.Character
+repeat task.wait() until player.Character
 print("Character found")
 
 print("Waiting for HumanoidRootPart...")
-repeat task.wait(0.5) until player.Character:FindFirstChild("HumanoidRootPart")
+repeat task.wait() until player.Character:FindFirstChild("HumanoidRootPart")
 print("HumanoidRootPart found")
 
-local playerGui = player:WaitForChild("PlayerGui", 5)
-local remotesFolder = ReplicatedStorage:WaitForChild("RemotesFolder", 5)
+task.wait(2)
+
+print("Getting PlayerGui...")
+local playerGui = player:WaitForChild("PlayerGui", 10)
+local mainUI = playerGui and playerGui:WaitForChild("MainUI", 10)
+local itemShop = mainUI and mainUI:WaitForChild("ItemShop", 10)
+local remotesFolder = ReplicatedStorage:WaitForChild("RemotesFolder", 10)
 
 if not remotesFolder then
 	warn("RemotesFolder not found.")
 	return
 end
 
+print("RemotesFolder found")
+
 local crouchRemote = remotesFolder:FindFirstChild("Crouch")
 if crouchRemote then
 	crouchRemote:FireServer(false, true)
+	print("Crouch fired")
 end
 
 local cewcew = true
@@ -82,7 +91,7 @@ task.spawn(function()
 				end)
 			end
 		end
-		task.wait(0.5)
+		task.wait()
 	end
 end)
 
@@ -93,7 +102,7 @@ local function getCharacter()
 	end
 	local hrp = character:FindFirstChild("HumanoidRootPart")
 	if not hrp then
-		hrp = character:WaitForChild("HumanoidRootPart", 5)
+		hrp = character:WaitForChild("HumanoidRootPart", 10)
 	end
 	return character, hrp
 end
@@ -124,73 +133,17 @@ local function checkAlive()
 	return alive.Value == true
 end
 
--- Continuous background Eyes tracking loop
-local function startEyesTrackingLoop()
-	task.spawn(function()
-		while true do
-			local char = player.Character
-			if char and checkAlive() then
-				local hrp = char:FindFirstChild("HumanoidRootPart")
-				local head = char:FindFirstChild("Head")
-				local eyes = workspace:FindFirstChild("Eyes", true)
-				local motorRemote = remotesFolder:FindFirstChild("MotorReplication")
-				
-				if eyes and hrp and head and motorRemote then
-					local eyesPos = eyes:GetPivot().Position
-					
-					-- Continuous character look at Eyes
-					local lookAtCF = CFrame.lookAt(hrp.Position, Vector3.new(eyesPos.X, hrp.Position.Y, eyesPos.Z))
-					hrp.CFrame = lookAtCF
-					
-					-- Camera look at Eyes
-					local cam = workspace.CurrentCamera
-					cam.CameraType = Enum.CameraType.Scriptable
-					cam.CFrame = CFrame.lookAt(head.Position + Vector3.new(0, 0.5, 0), eyesPos)
-					
-					-- MotorReplication pitch angle encoding
-					local rx, _, _ = CFrame.lookAt(head.Position, eyesPos):ToOrientation()
-					local pitchInDegrees = math.deg(rx)
-					local encodedMotorValue = math.round(pitchInDegrees * 10)
-					
-					pcall(function()
-						motorRemote:FireServer(encodedMotorValue)
-					end)
-				end
-			end
-			task.wait(0.5)
-		end
-	end)
-end
-
--- Fast teleport to Eyes
-local function teleportToEyes()
-	local eyes = workspace:FindFirstChild("Eyes", true)
-	if eyes then
-		local hrp = getCurrentHRP()
-		if hrp then
-			local eyesPos = eyes:GetPivot().Position
-			hrp.CFrame = CFrame.new(eyesPos + Vector3.new(0, 2, 3))
-			print("Teleported to Eyes")
-			return true
-		end
-	end
-	return false
-end
-
--- Start background MotorReplication loop
-startEyesTrackingLoop()
-
 print("Waiting for CurrentRooms...")
-local currentRooms = workspace:WaitForChild("CurrentRooms", 5)
-local currentRoom0 = currentRooms and currentRooms:WaitForChild("0", 5)
+local currentRooms = workspace:WaitForChild("CurrentRooms", 10)
+local currentRoom0 = currentRooms and currentRooms:WaitForChild("0", 10)
 
 if currentRoom0 then
 	print("Room 0 found")
-	local assets = currentRoom0:WaitForChild("Assets", 5)
-	local keyObtain = assets and assets:WaitForChild("KeyObtain", 5)
-	local keyHitbox = keyObtain and keyObtain:WaitForChild("Hitbox", 5)
+	local assets = currentRoom0:WaitForChild("Assets", 10)
+	local keyObtain = assets and assets:WaitForChild("KeyObtain", 10)
+	local keyHitbox = keyObtain and keyObtain:WaitForChild("Hitbox", 10)
 	local keyTimeout = tick()
-	
+	print("Looking for key...")
 	repeat
 		local character, hrp = getCharacter()
 		local keyObject = currentRoom0:FindFirstChild("KeyObtain", true)
@@ -203,12 +156,19 @@ if currentRoom0 then
 				fireproximityprompt(keyPrompt)
 			end)
 		end
-		task.wait(0.5)
-	until (player.Character and player.Character:FindFirstChild("Key")) or (tick() - keyTimeout > 8)
+		task.wait(0.05)
+	until (player.Character and player.Character:FindFirstChild("Key")) or (tick() - keyTimeout > 15)
 
-	local roomExit = currentRoom0:WaitForChild("RoomExit", 5)
+	if player.Character and player.Character:FindFirstChild("Key") then
+		print("Key obtained!")
+	else
+		print("Key timeout")
+	end
+
+	print("Finding RoomExit...")
+	local roomExit = currentRoom0:WaitForChild("RoomExit", 10)
 	local doorLooping = true
-	
+	print("RoomExit found, starting door loop...")
 	task.spawn(function()
 		while doorLooping do
 			local character, hrp = getCharacter()
@@ -221,52 +181,62 @@ if currentRoom0 then
 					fireproximityprompt(doorPrompt)
 				end)
 			end
-			task.wait(0.5)
+			task.wait(0.05)
 		end
 	end)
 
 	cewcew = false
-	task.wait(3)
+	print("Waiting 8 seconds...")
+	task.wait(8)
 	doorLooping = false
-	
-	teleportToEyes()
+	print("Room 0 complete")
 end
 
--- Instant death detection loop
-repeat
-	task.wait(0.5)
-until not checkAlive()
+-- Wait until death is confirmed
+print("Waiting for player death...")
+repeat task.wait(0.1) until not checkAlive()
+print("First death confirmed!")
 
-print("Character dead. Handling rejoin sequence...")
+-- 5-second wait post-death
+task.wait(5)
 
--- Wait 3 seconds post-death before firing PlayAgain
-task.wait(3)
+local playAgainRemote = remotesFolder:WaitForChild("PlayAgain", 10)
 
-local playAgainRemote = remotesFolder:WaitForChild("PlayAgain", 5)
+if playAgainRemote then
+	local progressDetected = false
+	
+	-- Connection to check if a teleport/level progression starts
+	local teleportConnection
+	teleportConnection = player.OnTeleport:Connect(function()
+		progressDetected = true
+		if teleportConnection then
+			teleportConnection:Disconnect()
+		end
+	end)
 
-local function firePlayAgain()
-	if playAgainRemote then
+	while not progressDetected do
+		print("Pressing PlayAgain...")
 		pcall(function()
 			playAgainRemote:FireServer()
 		end)
-	end
-end
 
--- Initial PlayAgain attempt
-firePlayAgain()
+		-- Wait 5 seconds to check if progress/teleport occurs
+		local checkStart = tick()
+		while tick() - checkStart < 5 do
+			if progressDetected or checkAlive() then
+				progressDetected = true
+				break
+			end
+			task.wait(0.2)
+		end
 
--- Rejoin fallback loop: checking every 10 seconds if no progress occurs
-task.spawn(function()
-	while true do
-		task.wait(5)
-		-- Check if player is still dead/hasn't progressed to a new place or character
-		if not checkAlive() then
-			print("No progress detected after 10 seconds. Retrying PlayAgain...")
-			firePlayAgain()
-		else
-			break
+		if not progressDetected then
+			print("No progress detected after 5 seconds, retrying PlayAgain...")
 		end
 	end
-end)
+	print("Progress detected! PlayAgain loop stopped.")
+else
+	warn("PlayAgain remote not found.")
+end
 
-print("Finished")
+print("Script finished execution")
