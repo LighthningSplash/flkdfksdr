@@ -9,7 +9,6 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
-local GuiService = game:GetService("GuiService")
 local player = Players.LocalPlayer
 
 print("Script started")
@@ -248,7 +247,7 @@ if not deathDetected then
 end
 
 --------------------------------------------------------------------------------
--- PLAY AGAIN / NATIVE UI HIGHLIGHT & SELECTION LOGIC
+-- PLAY AGAIN / VIRTUAL MOUSE CLICK LOGIC
 --------------------------------------------------------------------------------
 local progressDetected = false
 
@@ -265,25 +264,20 @@ charConn = player.CharacterAdded:Connect(function()
 	if charConn then charConn:Disconnect() end
 end)
 
--- Function to select the button and simulate the activation key
-local function selectAndActivateButton(button)
+-- Function to click UI Button via VirtualInputManager mouse event
+local function clickPlayAgainButton(button)
 	if not button or not button:IsA("GuiObject") then return end
 
-	print("Highlighting and activating button via GuiService...")
+	print("Clicking button using Virtual Mouse...")
 
 	pcall(function()
-		-- 1. Highlight / Select the object on screen (\ navigation focus)
-		GuiService.SelectedObject = button
-		task.wait(0.1)
-
-		-- 2. Simulate pressing the selection activation key (Enter / Return)
-		VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
+		local pos = button.AbsolutePosition
+		local size = button.AbsoluteSize
+		local clickPos = pos + (size / 2)
+		
+		VirtualInputManager:SendMouseButtonEvent(clickPos.X, clickPos.Y, 0, true, game, 1)
 		task.wait(0.05)
-		VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
-
-		-- 3. Clear selection state
-		task.wait(0.1)
-		GuiService.SelectedObject = nil
+		VirtualInputManager:SendMouseButtonEvent(clickPos.X, clickPos.Y, 0, false, game, 1)
 	end)
 end
 
@@ -312,9 +306,9 @@ if playAgainBtn and not progressDetected then
 	task.wait(1)
 
 	while not progressDetected do
-		selectAndActivateButton(playAgainBtn)
+		clickPlayAgainButton(playAgainBtn)
 		
-		-- Check every 0.2s for 5s if activation triggered progression
+		-- Check every 0.2s for 5s if click triggered progression
 		local clickStart = tick()
 		while tick() - clickStart < 5 do
 			if progressDetected then break end
@@ -322,7 +316,7 @@ if playAgainBtn and not progressDetected then
 		end
 
 		if not progressDetected then
-			print("No progress detected after selection, retrying activation...")
+			print("No progress detected after click, retrying Virtual Mouse click...")
 		end
 	end
 end
