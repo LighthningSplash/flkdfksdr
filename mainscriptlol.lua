@@ -247,16 +247,8 @@ if not deathDetected then
 	end
 end
 
--- If still not dead after Eyes attempts, skip delay
-if not deathDetected and checkAlive() then
-	warn("No death detected after 4s at Eyes. Proceeding directly...")
-else
-	print("Death confirmed! Waiting 5 seconds before first PlayAgain attempt...")
-	task.wait(5)
-end
-
 --------------------------------------------------------------------------------
--- PLAY AGAIN RETRY / VIRTUAL MOUSE LOGIC
+-- PLAY AGAIN / VIRTUAL MOUSE LOGIC (UI VISIBILITY BASED)
 --------------------------------------------------------------------------------
 local progressDetected = false
 
@@ -274,84 +266,76 @@ charConn = player.CharacterAdded:Connect(function()
 end)
 
 -- Function to click UI Button via VirtualInputManager & signal triggers
-local function clickPlayAgainButton()
-	local deathPanel = mainUI and mainUI:FindFirstChild("DeathPanel")
-	local playAgainBtn = deathPanel and deathPanel:FindFirstChild("PlayAgain")
+local function clickPlayAgainButton(playAgainBtn)
+	if not playAgainBtn or not playAgainBtn:IsA("GuiObject") then return end
 
-	if playAgainBtn and playAgainBtn:IsA("GuiObject") then
-		print("Attempting virtual mouse click on DeathPanel.PlayAgain...")
-		
-		-- Method 1: Executor firesignal (if supported)
-		if typeof(firesignal) == "function" then
-			pcall(function() firesignal(playAgainBtn.MouseButton1Click) end)
-			pcall(function() firesignal(playAgainBtn.MouseButton1Down) end)
-			pcall(function() firesignal(playAgainBtn.MouseButton1Up) end)
-			pcall(function() firesignal(playAgainBtn.Activated) end)
-		end
-
-		-- Method 2: VirtualInputManager center screen click
-		pcall(function()
-			local pos = playAgainBtn.AbsolutePosition
-			local size = playAgainBtn.AbsoluteSize
-			local clickPos = pos + (size / 2)
-			
-			VirtualInputManager:SendMouseButtonEvent(clickPos.X, clickPos.Y, 0, true, game, 1)
-			task.wait(0.05)
-			VirtualInputManager:SendMouseButtonEvent(clickPos.X, clickPos.Y, 0, false, game, 1)
-		end)
-
-		-- Method 3: GuiService selection press
-		pcall(function()
-			GuiService.SelectedObject = playAgainBtn
-			VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
-			task.wait(0.05)
-			VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
-			GuiService.SelectedObject = nil
-		end)
-	else
-		warn("PlayAgain TextButton not found in DeathPanel!")
+	print("Attempting virtual mouse click on DeathPanel.PlayAgain...")
+	
+	-- Method 1: Executor firesignal (if supported)
+	if typeof(firesignal) == "function" then
+		pcall(function() firesignal(playAgainBtn.MouseButton1Click) end)
+		pcall(function() firesignal(playAgainBtn.MouseButton1Down) end)
+		pcall(function() firesignal(playAgainBtn.MouseButton1Up) end)
+		pcall(function() firesignal(playAgainBtn.Activated) end)
 	end
+
+	-- Method 2: VirtualInputManager center screen click
+	pcall(function()
+		local pos = playAgainBtn.AbsolutePosition
+		local size = playAgainBtn.AbsoluteSize
+		local clickPos = pos + (size / 2)
+		
+		VirtualInputManager:SendMouseButtonEvent(clickPos.X, clickPos.Y, 0, true, game, 1)
+		task.wait(0.05)
+		VirtualInputManager:SendMouseButtonEvent(clickPos.X, clickPos.Y, 0, false, game, 1)
+	end)
+
+	-- Method 3: GuiService selection press
+	pcall(function()
+		GuiService.SelectedObject = playAgainBtn
+		VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
+		task.wait(0.05)
+		VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
+		GuiService.SelectedObject = nil
+	end)
 end
 
--- Helper to wait up to `duration` seconds while checking if progress was made
-local function waitAndCheckProgress(duration)
-	local startTime = tick()
-	while tick() - startTime < duration do
-		if progressDetected or (deathDetected and checkAlive()) then
-			return true
+-- Helper to wait until the PlayAgain TextButton is visible on screen
+local function waitForButtonVisible()
+	print("Waiting for PlayAgain button to become visible...")
+	while not progressDetected do
+		local deathPanel = mainUI and mainUI:FindFirstChild("DeathPanel")
+		local playAgainBtn = deathPanel and deathPanel:FindFirstChild("PlayAgain")
+
+		if playAgainBtn and playAgainBtn:IsA("GuiObject") then
+			if playAgainBtn.Visible and playAgainBtn.AbsoluteSize.X > 0 then
+				return playAgainBtn
+			end
 		end
 		task.wait(0.2)
 	end
-	return progressDetected
+	return nil
 end
 
-local playAgainRemote = remotesFolder:FindFirstChild("PlayAgain")
+-- Main Flow Execution
+local playAgainBtn = waitForButtonVisible()
 
--- ATTEMPT 1: Fire PlayAgain Remote
-print("[Attempt 1] Firing PlayAgain remote...")
-if playAgainRemote then
-	pcall(function() playAgainRemote:FireServer() end)
-else
-	warn("PlayAgain remote missing!")
-end
+if playAgainBtn and not progressDetected then
+	print("PlayAgain button is now visible! Waiting 1 second...")
+	task.wait(1)
 
-if not waitAndCheckProgress(5) then
-	-- ATTEMPT 2: No progress after 5s -> Fire PlayAgain Remote again
-	print("[Attempt 2] No progress detected after 5s. Refiring PlayAgain remote...")
-	if playAgainRemote then
-		pcall(function() playAgainRemote:FireServer() end)
-	end
-
-	if not waitAndCheckProgress(5) then
-		-- ATTEMPT 3: No progress after 5s -> Virtual Mouse Click UI Button
-		print("[Attempt 3] Still no progress after 10s total. Clicking PlayAgain TextButton with Virtual Mouse...")
+	while not progressDetected do
+		clickPlayAgainButton(playAgainBtn)
 		
-		while not progressDetected do
-			clickPlayAgainButton()
-			if waitAndCheckProgress(5) then
-				break
-			end
-			print("Retrying Virtual Mouse click...")
+		-- Check every 0.2s for 5s if click triggered progression
+		local clickStart = tick()
+		while tick() - clickStart < 5 do
+			if progressDetected then break end
+			task.wait(0.2)
+		end
+
+		if not progressDetected then
+			print("No progress detected after click, retrying Virtual Mouse click...")
 		end
 	end
 end
