@@ -20,7 +20,7 @@ local Crouch = RemotesFolder:WaitForChild("Crouch")
 local MotorRemote = RemotesFolder:FindFirstChild("MotorReplication")
 
 player.OnTeleport:Connect(function()
-	     queueteleport("loadstring(game:HttpGet('https://raw.githubusercontent.com/LighthningSplash/flkdfksdr/refs/heads/main/mainscriptlol.lua'))()")
+		queueteleport("loadstring(game:HttpGet('https://raw.githubusercontent.com/LighthningSplash/flkdfksdr/refs/heads/main/mainscriptlol.lua'))()")
 end)
 
 local character = player.Character or player.CharacterAdded:Wait()
