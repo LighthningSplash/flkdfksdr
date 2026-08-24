@@ -144,7 +144,7 @@ task.spawn(function()
 end)
 
 task.spawn(function()
-    task.wait(5) -- wait 5 seconds after door is first unlocked
+    task.wait(2) -- wait 5 seconds after door is first unlocked
     if not ended and doorOpened then
         while not ended do
             teleportToEyes()
