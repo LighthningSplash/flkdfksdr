@@ -19,23 +19,6 @@ local PlayAgain = RemotesFolder:WaitForChild("PlayAgain", 999)
 local Crouch = RemotesFolder:WaitForChild("Crouch")
 local MotorRemote = RemotesFolder:FindFirstChild("MotorReplication")
 
--- Fixed queue_on_teleport detection
-local queueteleport = queue_on_teleport 
-	or (syn and syn.queue_on_teleport) 
-	or (fluxus and fluxus.queue_on_teleport)
-
-task.spawn(function()
-	while not player do
-		task.wait()
-		player = Players.LocalPlayer
-	end
-	player.OnTeleport:Connect(function()
-		if queueteleport then
-			queueteleport("loadstring(game:HttpGet('https://raw.githubusercontent.com/LighthningSplash/flkdfksdr/refs/heads/main/mainscriptlol.lua'))()")
-		end
-	end)
-end)
-
 local character = player.Character or player.CharacterAdded:Wait()
 
 -- Fast crouch spam (anti-cheat bypass)
@@ -142,7 +125,7 @@ task.spawn(function()
 end)
 
 task.spawn(function()
-    task.wait(2) -- wait 2 seconds after door is first unlocked
+    task.wait(2) -- wait 5 seconds after door is first unlocked
     if not ended and doorOpened then
         while not ended do
             teleportToEyes()
